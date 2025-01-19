@@ -1,0 +1,31 @@
+import {
+  SmartContract,
+  state,
+  State,
+  PublicKey,
+  method,
+  Signature,
+  Field,
+} from 'o1js';
+
+export class Test extends SmartContract {
+  // State variable to store the admin's public key
+  @state(PublicKey) adminKey = State<PublicKey>();
+
+  // Method to initialize the admin key
+  @method async initWorld(adminPublicKey: PublicKey) {
+    super.init(); // Initialize the contract
+    this.adminKey.set(adminPublicKey); // Store the admin's public key
+  }
+
+  // verify ownership using a signature
+  @method async verifyAdmin(message: Field, signature: Signature) {
+    //This line below was suggested by testing...
+    this.adminKey.requireEquals(this.adminKey.get());
+    const adminPublicKey = this.adminKey.get(); // Get admin public key
+
+    // Verify the signature
+    const isValidSignature = signature.verify(adminPublicKey, [message]);
+    isValidSignature.assertTrue('Valid signature');
+  }
+}
