@@ -1,4 +1,4 @@
-import { AccountUpdate, Mina, PrivateKey, PublicKey } from 'o1js';
+import { AccountUpdate, Mina, PrivateKey, PublicKey, Cache } from 'o1js';
 import { Test } from './Test';
 
 /*
@@ -6,7 +6,7 @@ import { Test } from './Test';
  *
  * See https://docs.minaprotocol.com/zkapps for more info.
  */
-
+const proofsEnabled = false;
 describe('Test', () => {
   let deployerAccount: Mina.TestPublicKey,
     deployerKey: PrivateKey,
@@ -17,11 +17,13 @@ describe('Test', () => {
     zkApp: Test;
 
   beforeAll(async () => {
-    await Test.compile();
+    const { verificationKey } = await Test.compile({
+      cache: Cache.FileSystemDefault,
+    });
   });
 
   beforeEach(async () => {
-    const Local = await Mina.LocalBlockchain();
+    const Local = await Mina.LocalBlockchain({ proofsEnabled });
     Mina.setActiveInstance(Local);
     [deployerAccount, senderAccount] = Local.testAccounts;
     deployerKey = deployerAccount.key;
@@ -43,7 +45,8 @@ describe('Test', () => {
 
   it('generates and deploys the `Test` smart contract', async () => {
     await localDeploy();
-    const adminKey = zkApp.adminKey.get();
+    //use fetch in test, instead of get, as it is async call to a network
+    const adminKey = await zkApp.adminKey.fetch();
     expect(adminKey).not.toBeNull();
   });
 
@@ -59,7 +62,7 @@ describe('Test', () => {
     await txn.prove();
     await txn.sign([senderKey]).send();
 
-    const storedAdminKey = zkApp.adminKey.get();
+    const storedAdminKey = await zkApp.adminKey.fetch();
     expect(storedAdminKey).toEqual(adminPublicKey);
   });
 });
