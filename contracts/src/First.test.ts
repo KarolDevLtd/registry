@@ -1,5 +1,5 @@
 import { AccountUpdate, Mina, PrivateKey, PublicKey, Cache } from 'o1js';
-import { Test } from './Test';
+import { First } from './First';
 
 /*
  * This file specifies how to test the `Test` example smart contract.
@@ -7,17 +7,17 @@ import { Test } from './Test';
  * See https://docs.minaprotocol.com/zkapps for more info.
  */
 const proofsEnabled = false;
-describe('Test', () => {
+describe('First', () => {
   let deployerAccount: Mina.TestPublicKey,
     deployerKey: PrivateKey,
     senderAccount: Mina.TestPublicKey,
     senderKey: PrivateKey,
     zkAppAddress: PublicKey,
     zkAppPrivateKey: PrivateKey,
-    zkApp: Test;
+    zkApp: First;
 
   beforeAll(async () => {
-    const { verificationKey } = await Test.compile({
+    const { verificationKey } = await First.compile({
       cache: Cache.FileSystemDefault,
     });
   });
@@ -31,7 +31,7 @@ describe('Test', () => {
 
     zkAppPrivateKey = PrivateKey.random();
     zkAppAddress = zkAppPrivateKey.toPublicKey();
-    zkApp = new Test(zkAppAddress);
+    zkApp = new First(zkAppAddress);
   });
 
   async function localDeploy() {

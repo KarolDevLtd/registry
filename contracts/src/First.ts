@@ -9,7 +9,7 @@ import {
   AccountUpdate,
 } from 'o1js';
 
-export class Test extends SmartContract {
+export class First extends SmartContract {
   // State variable to store the admin's public key
   @state(PublicKey) adminKey = State<PublicKey>();
   // @state(Field) state2 = State<Field>();
