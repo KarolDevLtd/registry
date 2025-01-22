@@ -38,11 +38,7 @@ export class First extends SmartContract {
     // AccountUpdate.create(this.sender).update.appState[1].value;
   }
 
-  @method async updateValue(
-    newValue: Field,
-    message: Field,
-    signature: Signature
-  ) {
+  @method async updateValue(message: Field, signature: Signature) {
     await this.verifyAdmin(message, signature);
 
     let paymentAmount = UInt64.from(2500000000);
@@ -50,8 +46,10 @@ export class First extends SmartContract {
     let senderUpdate = AccountUpdate.createSigned(
       this.adminKey.getAndRequireEquals()
     );
+
+    //always guarded by private key of the sender
     senderUpdate.send({ to: this, amount: paymentAmount });
 
-    this.value.set(newValue);
+    this.value.set(message);
   }
 }

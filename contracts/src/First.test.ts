@@ -20,6 +20,7 @@ describe('First', () => {
     deployerKey: PrivateKey,
     senderAccount: Mina.TestPublicKey,
     senderKey: PrivateKey,
+    adminAccount: Mina.TestPublicKey,
     zkAppAddress: PublicKey,
     zkAppPrivateKey: PrivateKey,
     zkApp: First;
@@ -33,8 +34,8 @@ describe('First', () => {
   beforeEach(async () => {
     const Local = await Mina.LocalBlockchain({ proofsEnabled });
     Mina.setActiveInstance(Local);
-    [deployerAccount, senderAccount] = Local.testAccounts;
-    deployerKey = deployerAccount.key;
+    [deployerAccount, senderAccount, adminAccount] = Local.testAccounts;
+    deployerKey = deployerAccount.key; //deployerAccount - test account with access to both private and public key. deployerAccount.key is provate key
     senderKey = senderAccount.key;
 
     zkAppPrivateKey = PrivateKey.random();
@@ -43,6 +44,7 @@ describe('First', () => {
   });
 
   async function localDeploy() {
+    //In the below function, we are using the deployerKey funds to deploy our smart contract at location zkAppPrivateKey
     const txn = await Mina.transaction(deployerAccount, async () => {
       AccountUpdate.fundNewAccount(deployerAccount);
       await zkApp.deploy();
@@ -103,25 +105,26 @@ describe('First', () => {
     await localDeploy();
 
     //initWorld setup
-    const adminPrivateKey = PrivateKey.random();
-    const adminPublicKey = adminPrivateKey.toPublicKey();
-    const initTxn = await Mina.transaction(senderAccount, async () => {
-      await zkApp.initWorld(adminPublicKey);
+    const initTxn = await Mina.transaction(adminAccount, async () => {
+      await zkApp.initWorld(adminAccount);
     });
     await initTxn.prove();
-    await initTxn.sign([senderKey]).send();
+    await initTxn.sign([adminAccount.key]).send();
 
     //updateValue setup
-    const newValue = Field(1);
     const message = Field(999);
-    const signature = Signature.create(adminPrivateKey, [message]);
-    const updateTxn = await Mina.transaction(senderAccount, async () => {
-      await zkApp.updateValue(newValue, message, signature);
+    const signature = Signature.create(adminAccount.key, [message]);
+    const updateTxn = await Mina.transaction(adminAccount, async () => {
+      await zkApp.updateValue(message, signature);
     });
     await updateTxn.prove();
-    await updateTxn.sign([senderKey]).send();
+
+    //Erroring on transaction sign, can use console log below to debug
+    console.log(updateTxn.toPretty());
+
+    await updateTxn.sign([adminAccount.key]).send();
     const storedValue = await zkApp.value.fetch();
-    expect(storedValue).toEqual(newValue);
+    expect(storedValue).toEqual(message);
   });
 
   it('fails to update value with invalid admin signature', async () => {
@@ -137,13 +140,12 @@ describe('First', () => {
     await initTxn.sign([senderKey]).send();
 
     //updateValue setup
-    const newValue = Field(1);
     const message = Field(999);
     const invalidPrivateKey = PrivateKey.random();
     const invalidSignature = Signature.create(invalidPrivateKey, [message]);
     await expect(async () => {
       const updateTxn = await Mina.transaction(senderAccount, async () => {
-        await zkApp.updateValue(newValue, message, invalidSignature);
+        await zkApp.updateValue(message, invalidSignature);
       });
       await updateTxn.prove();
       await updateTxn.sign([senderKey]).send();
