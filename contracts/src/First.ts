@@ -17,6 +17,7 @@ export class First extends SmartContract {
 
   // Method to initialize the admin key
   @method async initWorld(adminPublicKey: PublicKey) {
+    console.log('inside initWorld with ', adminPublicKey);
     super.init(); // Initialize the contract
     this.adminKey.set(adminPublicKey); // Store the admin's public key
     this.value.set(Field(0));
@@ -39,6 +40,8 @@ export class First extends SmartContract {
   }
 
   @method async updateValue(message: Field, signature: Signature) {
+    console.log('inside updateValue with ', message, ' & ', signature);
+
     await this.verifyAdmin(message, signature);
 
     let paymentAmount = UInt64.from(2500000000);
