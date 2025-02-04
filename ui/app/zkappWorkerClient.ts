@@ -1,67 +1,55 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type {
-  ZkappWorkerRequest,
-  ZkappWorkerReponse,
-  WorkerFunctions,
-} from "./zkappWorker";
+import { Field, Signature } from "o1js";
+import * as Comlink from "comlink";
 
 export default class ZkappWorkerClient {
-  spinUp() {
-    return this._call("spinUp", {});
-  }
-  initWorld(adminPublicKey: string) {
-    return this._call("initTransaction", { adminPublicKey: adminPublicKey });
-  }
-
-  updateValue(value: number, signature: string) {
-    return this._call("updateValue", { value: value, signature: signature });
-  }
-
   // ---------------------------------------------------------------------------------------
-
   worker: Worker;
-
-  promises: {
-    [id: number]: { resolve: (res: any) => void; reject: (err: any) => void };
-  };
-
-  nextId: number;
+  // Proxy to interact with the worker's methods as if they were local
+  remoteApi: Comlink.Remote<typeof import("./zkappWorker").api>;
 
   constructor() {
-    this.worker = new Worker(new URL("./zkappWorker.ts", import.meta.url));
-    this.promises = {};
-    this.nextId = 0;
-
-    // this.worker.onmessage = (event: MessageEvent<ZkappWorkerReponse>) => {
-    // 	this.promises[event.data.id]?.resolve(event.data.data);
-    // 	delete this.promises[event.data.id];
-    // };
-    this.worker.onmessage = (event: MessageEvent<ZkappWorkerReponse>) => {
-      const response = event.data;
-      if (response.error) {
-        const error = new Error(response.errorMessage);
-        error.stack = response.errorStack ?? error.stack; // Preserve the original stack if available
-        this.promises[response.id].reject(error);
-      } else {
-        this.promises[response.id].resolve(response.data);
-      }
-      delete this.promises[response.id];
-    };
+    // Initialize the worker from the zkappWorker module
+    const worker = new Worker(new URL("./zkappWorker.ts", import.meta.url), {
+      type: "module",
+    });
+    // Wrap the worker with Comlink to enable direct method invocation
+    this.remoteApi = Comlink.wrap(worker);
   }
 
-  _call(fn: WorkerFunctions, args: any) {
-    return new Promise((resolve, reject) => {
-      this.promises[this.nextId] = { resolve, reject };
+  async setActiveInstanceToDevnet() {
+    return this.remoteApi.setActiveInstanceToDevnet();
+  }
 
-      const message: ZkappWorkerRequest = {
-        id: this.nextId,
-        fn,
-        args,
-      };
+  async loadContract() {
+    return this.remoteApi.loadContract();
+  }
 
-      this.worker.postMessage(message);
+  async compileContract() {
+    return this.remoteApi.compileContract();
+  }
 
-      this.nextId++;
-    });
+  async fetchAccount(publicKeyBase58: string) {
+    return this.remoteApi.fetchAccount(publicKeyBase58);
+  }
+
+  async initZkappInstance(publicKeyBase58: string, adminKey58: string) {
+    return this.remoteApi.initZkappInstance(publicKeyBase58, adminKey58);
+  }
+
+  async getNum(): Promise<Field> {
+    const result = await this.remoteApi.getNum();
+    return Field.fromJSON(JSON.parse(result as string));
+  }
+
+  async createUpdateTransaction(value: number, signature: Signature) {
+    return this.remoteApi.createUpdateTransaction(value, signature);
+  }
+
+  async proveUpdateTransaction() {
+    return this.remoteApi.proveUpdateTransaction();
+  }
+
+  async getTransactionJSON() {
+    return this.remoteApi.getTransactionJSON();
   }
 }

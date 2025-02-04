@@ -20,7 +20,7 @@ export class First extends SmartContract {
     console.log('inside initWorld with ', adminPublicKey);
     super.init(); // Initialize the contract
     this.adminKey.set(adminPublicKey); // Store the admin's public key
-    this.value.set(Field(0));
+    this.value.set(Field(1));
   }
 
   // verify ownership using a signature

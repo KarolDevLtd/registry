@@ -1,75 +1,63 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { Field, PrivateKey, PublicKey, Signature } from "o1js";
-import { First } from "../../contracts/src";
+import { Field, Mina, PublicKey, Signature, fetchAccount } from "o1js";
+import * as Comlink from "comlink";
+import type { First } from "../../contracts/src/First";
+
+type Transaction = Awaited<ReturnType<typeof Mina.transaction>>;
 
 const state = {
-  zkApp: null as null | First,
+  FirstInstance: null as null | typeof First,
+  zkappInstance: null as null | First,
+  transaction: null as null | Transaction,
 };
 
-const functions = {
-  spinUp: async () => {
-    console.log("spinUp");
-    // const Local = await Mina.LocalBlockchain();
-    // Mina.setActiveInstance(Local);
-    const zkAppPrivateKey = PrivateKey.random();
-    const zkAppAddress = zkAppPrivateKey.toPublicKey();
-    state.zkApp = new First(zkAppAddress);
+export const api = {
+  async setActiveInstanceToDevnet() {
+    const Network = Mina.Network(
+      "https://api.minascan.io/node/devnet/v1/graphql"
+    );
+    console.log("Devnet network instance configured");
+    Mina.setActiveInstance(Network);
   },
-
-  initTransaction: async (args: { adminPublicKey: string }) => {
-    const admin = PublicKey.fromBase58(args.adminPublicKey);
-    state.zkApp?.initWorld(admin);
+  async loadContract() {
+    const { First } = await import("../../contracts/build/src/First.js");
+    state.FirstInstance = First;
   },
-
-  updateValue: (args: { value: number; signature: Signature }) => {
-    state.zkApp?.updateValue(Field.from(args.value), args.signature);
+  async compileContract() {
+    await state.FirstInstance!.compile();
   },
-};
-
-export type WorkerFunctions = keyof typeof functions;
-
-export type ZkappWorkerRequest = {
-  id: number;
-  fn: WorkerFunctions;
-  args: any;
-};
-
-export type ZkappWorkerReponse = {
-  id: number;
-  data: any;
-  error: boolean;
-  errorMessage: string;
-  errorStack?: string;
-};
-
-if (typeof window) {
-  // if (process.browser) { //TODO check if this is correct
-  addEventListener(
-    "message",
-    async (event: MessageEvent<ZkappWorkerRequest>) => {
-      try {
-        const returnData = await functions[event.data.fn](event.data.args);
-
-        const message: ZkappWorkerReponse = {
-          id: event.data.id,
-          data: returnData,
-          error: false,
-          errorMessage: "",
-        };
-        postMessage(message);
-      } catch (error: unknown) {
-        // If an error occurs, create a response with an error flag and message
-        const err: Error = error as Error;
-        const errorMessage: ZkappWorkerReponse = {
-          id: event.data.id,
-          data: null,
-          error: true,
-          errorMessage: err.message,
-          errorStack: err.stack,
-        };
-        postMessage(errorMessage);
+  async fetchAccount(publicKey58: string) {
+    const publicKey = PublicKey.fromBase58(publicKey58);
+    return fetchAccount({ publicKey });
+  },
+  async initZkappInstance(publicKey58: string, adminKey58: string) {
+    const publicKey = PublicKey.fromBase58(publicKey58);
+    state.zkappInstance = new state.FirstInstance!(publicKey);
+    state.zkappInstance.initWorld(PublicKey.fromBase58(adminKey58));
+  },
+  async getNum() {
+    const currentNum = await state.zkappInstance!.value.get();
+    return JSON.stringify(currentNum.toJSON());
+  },
+  async createUpdateTransaction(value: number, signature: Signature) {
+    state.transaction = await Mina.transaction(async () => {
+      //   await state.zkappInstance!.updateValue(Field.from(value), signature);
+      if (!state.zkappInstance) {
+        console.error("zkappInstance is not initialized");
+        return;
       }
-    }
-  );
-}
-console.log("Web Worker Successfully Initialized.");
+      await state.zkappInstance.updateValue(
+        Field.from(value.toString()),
+        signature
+      );
+    });
+  },
+  async proveUpdateTransaction() {
+    await state.transaction!.prove();
+  },
+  async getTransactionJSON() {
+    return state.transaction!.toJSON();
+  },
+};
+
+// Expose the API to be used by the main thread
+Comlink.expose(api);
