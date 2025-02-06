@@ -1,4 +1,12 @@
-import { Field, Mina, PublicKey, Signature, fetchAccount } from "o1js";
+import {
+  AccountUpdate,
+  Field,
+  Mina,
+  PrivateKey,
+  PublicKey,
+  Signature,
+  fetchAccount,
+} from "o1js";
 import * as Comlink from "comlink";
 import type { First } from "../../contracts/src/First";
 
@@ -29,10 +37,15 @@ export const api = {
     const publicKey = PublicKey.fromBase58(publicKey58);
     return fetchAccount({ publicKey });
   },
-  async initZkappInstance(publicKey58: string, adminKey58: string) {
-    const publicKey = PublicKey.fromBase58(publicKey58);
-    state.zkappInstance = new state.FirstInstance!(publicKey);
-    state.zkappInstance.initWorld(PublicKey.fromBase58(adminKey58));
+  async deployZkappInstance(publicKey58: string, adminKey58: string) {
+    state.transaction = await Mina.transaction(async () => {
+      const publicKey = PublicKey.fromBase58(publicKey58);
+      state.zkappInstance = new state.FirstInstance!(publicKey);
+      AccountUpdate.fundNewAccount(PublicKey.fromBase58(adminKey58));
+      state.zkappInstance.deploy({
+        adminPublicKey: PublicKey.fromBase58(adminKey58),
+      });
+    });
   },
   async getNum() {
     const currentNum = await state.zkappInstance!.value.get();
@@ -45,17 +58,24 @@ export const api = {
         console.error("zkappInstance is not initialized");
         return;
       }
-      await state.zkappInstance.updateValue(
-        Field.from(value.toString()),
-        signature
-      );
+      // const x = Signature.fromBase58(signature.signature);
+      await state.zkappInstance.updateValue(Field(4), signature);
     });
   },
-  async proveUpdateTransaction() {
+  async proveTransaction() {
     await state.transaction!.prove();
   },
   async getTransactionJSON() {
     return state.transaction!.toJSON();
+  },
+  async getDeployTransactionJSON() {
+    return state.transaction
+      ?.sign([
+        PrivateKey.fromBase58(
+          "EKFJ6DSX9HNM6jbLBG5RYv7tSLK8CrQRZWbDYAKM1XFyzJ95ssWx"
+        ),
+      ])
+      .toJSON();
   },
 };
 

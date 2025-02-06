@@ -1,5 +1,5 @@
 "use client";
-import { Field } from "o1js";
+import { Field, PrivateKey } from "o1js";
 import { useEffect, useState } from "react";
 import GradientBG from "../components/GradientBG";
 import styles from "../styles/Home.module.css";
@@ -7,7 +7,28 @@ import "./reactCOIServiceWorker";
 import ZkappWorkerClient from "./zkappWorkerClient";
 
 let transactionFee = 0.1;
-const ZKAPP_ADDRESS = "B62qpXPvmKDf4SaFJynPsT6DyvuxMS9H1pT4TGonDT26m599m7dS9gP";
+
+// const zkAppPrivateKey = PrivateKey.random();
+// const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
+// console.log("Private key", zkAppPrivateKey.toBase58());
+// console.log("Public key", zkAppPublicKey.toBase58());
+
+const zkAppPrivateKey = "EKFJ6DSX9HNM6jbLBG5RYv7tSLK8CrQRZWbDYAKM1XFyzJ95ssWx";
+const zkAppPublicKey =
+  "B62qk16EioQdQRr353H3fmXUb3MRoyavUwvi2TYDLnkDtFp5eUaFKMX";
+console.log("Private key", zkAppPrivateKey);
+console.log("Public key", zkAppPublicKey);
+
+const ZKAPP_ADDRESS = zkAppPublicKey;
+
+export interface SignedData {
+  publicKey: string;
+  data: string;
+  signature: {
+    field: string;
+    scalar: string;
+  };
+}
 
 export default function Home() {
   const [zkappWorkerClient, setZkappWorkerClient] =
@@ -17,7 +38,7 @@ export default function Home() {
   const [accountExists, setAccountExists] = useState(false);
   const [currentNum, setCurrentNum] = useState<null | Field>(null);
   const [publicKeyBase58, setPublicKeyBase58] = useState("");
-  const [creatingTransaction, setCreatingTransaction] = useState(false);
+  const [transactionInProgress, setTransactionInProgress] = useState(false);
   const [displayText, setDisplayText] = useState("");
   const [transactionlink, setTransactionLink] = useState("");
 
@@ -62,11 +83,6 @@ export default function Home() {
           displayStep("Compiling zkApp...");
           await zkappWorkerClient.compileContract();
           displayStep("zkApp compiled");
-
-          await zkappWorkerClient.initZkappInstance(
-            ZKAPP_ADDRESS,
-            publicKeyBase58
-          );
 
           displayStep("Getting zkApp state...");
           await zkappWorkerClient.fetchAccount(ZKAPP_ADDRESS);
@@ -116,41 +132,88 @@ export default function Home() {
   // -------------------------------------------------------
   // Send a transaction
 
-  const onSendTransaction = async () => {
-    setCreatingTransaction(true);
-    displayStep("Creating a transaction...");
+  const onSendInitTransaction = async () => {
+    try {
+      setTransactionInProgress(true);
+      displayStep("Creating a init transaction...");
 
-    console.log("publicKeyBase58 sending to worker", publicKeyBase58);
-    await zkappWorkerClient!.fetchAccount(publicKeyBase58);
+      console.log("publicKeyBase58 sending to worker", publicKeyBase58);
+      await zkappWorkerClient!.fetchAccount(publicKeyBase58);
 
-    const mina = (window as any).mina;
+      await zkappWorkerClient!.deployZkappInstance(
+        ZKAPP_ADDRESS,
+        publicKeyBase58
+      );
 
-    const signature = await mina
-      ?.signMessage({ message: "tiddies" })
-      .catch((err: any) => err);
+      displayStep("Creating proof...");
+      await zkappWorkerClient!.proveTransaction();
 
-    await zkappWorkerClient!.createUpdateTransaction(1, signature);
+      displayStep("Requesting send init transaction...");
+      const transactionJSON =
+        await zkappWorkerClient!.getDeployTransactionJSON();
 
-    displayStep("Creating proof...");
-    await zkappWorkerClient!.proveUpdateTransaction();
+      displayStep("Getting int transaction JSON...");
+      const { hash } = await (window as any).mina.sendTransaction({
+        transaction: transactionJSON,
+        feePayer: {
+          fee: transactionFee,
+          memo: "",
+        },
+      });
 
-    displayStep("Requesting send transaction...");
-    const transactionJSON = await zkappWorkerClient!.getTransactionJSON();
+      // const transactionLink = `https://minascan.io/devnet/tx/${hash}`;
+      // setTransactionLink(transactionLink);
+      // setDisplayText(transactionLink);
+    } catch (error) {
+      console.log("error", error);
+    } finally {
+      setTransactionInProgress(false);
+    }
+  };
 
-    displayStep("Getting transaction JSON...");
-    const { hash } = await (window as any).mina.sendTransaction({
-      transaction: transactionJSON,
-      feePayer: {
-        fee: transactionFee,
-        memo: "",
-      },
-    });
+  const onSendUpdateTransaction = async () => {
+    try {
+      setTransactionInProgress(true);
+      displayStep("Creating a update transaction...");
 
-    const transactionLink = `https://minascan.io/devnet/tx/${hash}`;
-    setTransactionLink(transactionLink);
-    setDisplayText(transactionLink);
+      console.log("publicKeyBase58 sending to worker", publicKeyBase58);
+      await zkappWorkerClient!.fetchAccount(publicKeyBase58);
 
-    setCreatingTransaction(true);
+      const mina = (window as any).mina;
+
+      const data = await mina
+        ?.signMessage({ message: "q" })
+        .catch((err: any) => err);
+
+      const siggy = data.signature;
+
+      await zkappWorkerClient!.createUpdateTransaction(1, siggy);
+
+      displayStep("Creating proof...");
+      await zkappWorkerClient!.proveTransaction();
+
+      displayStep("Requesting send update transaction...");
+      const transactionJSON = await zkappWorkerClient!.getTransactionJSON();
+
+      displayStep("Getting update  transaction JSON...");
+      const { hash } = await (window as any).mina.sendTransaction({
+        transaction: transactionJSON,
+        feePayer: {
+          fee: transactionFee,
+          memo: "",
+        },
+      });
+
+      const transactionLink = `https://minascan.io/devnet/tx/${hash}`;
+      setTransactionLink(transactionLink);
+      setDisplayText(transactionLink);
+
+      setTransactionInProgress(false);
+    } catch (error) {
+      console.log("error", error);
+    } finally {
+      setTransactionInProgress(false);
+    }
   };
 
   // -------------------------------------------------------
@@ -233,8 +296,15 @@ export default function Home() {
         </div>
         <button
           className={styles.card}
-          onClick={onSendTransaction}
-          disabled={creatingTransaction}
+          onClick={onSendInitTransaction}
+          disabled={transactionInProgress}
+        >
+          Init Transaction
+        </button>
+        <button
+          className={styles.card}
+          onClick={onSendUpdateTransaction}
+          disabled={transactionInProgress}
         >
           Send Transaction
         </button>

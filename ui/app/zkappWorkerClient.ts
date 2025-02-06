@@ -32,8 +32,8 @@ export default class ZkappWorkerClient {
     return this.remoteApi.fetchAccount(publicKeyBase58);
   }
 
-  async initZkappInstance(publicKeyBase58: string, adminKey58: string) {
-    return this.remoteApi.initZkappInstance(publicKeyBase58, adminKey58);
+  async deployZkappInstance(publicKeyBase58: string, adminKey58: string) {
+    return this.remoteApi.deployZkappInstance(publicKeyBase58, adminKey58);
   }
 
   async getNum(): Promise<Field> {
@@ -45,11 +45,15 @@ export default class ZkappWorkerClient {
     return this.remoteApi.createUpdateTransaction(value, signature);
   }
 
-  async proveUpdateTransaction() {
-    return this.remoteApi.proveUpdateTransaction();
+  async proveTransaction() {
+    return this.remoteApi.proveTransaction();
   }
 
   async getTransactionJSON() {
     return this.remoteApi.getTransactionJSON();
+  }
+
+  async getDeployTransactionJSON() {
+    return this.remoteApi.getDeployTransactionJSON();
   }
 }

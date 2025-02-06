@@ -8,6 +8,9 @@ import {
   Field,
   AccountUpdate,
   UInt64,
+  Provable,
+  Permissions,
+  DeployArgs,
 } from 'o1js';
 
 export class First extends SmartContract {
@@ -16,10 +19,30 @@ export class First extends SmartContract {
   @state(Field) value = State<Field>();
 
   // Method to initialize the admin key
-  @method async initWorld(adminPublicKey: PublicKey) {
-    console.log('inside initWorld with ', adminPublicKey);
+  // @method async initWorld(adminPublicKey: PublicKey) {
+  //   Provable.log('inside initWorld with ', adminPublicKey);
+  //   super.init(); // Initialize the contract
+  //   this.adminKey.set(adminPublicKey); // Store the admin's public key
+  //   this.value.set(Field(1));
+  // }
+
+  // @method async init() {
+  //   super.init(); // Initialize the contract
+  //   Provable.log('inside initWorld with ', args.adminPublicKey);
+  //   this.adminKey.set(args.adminPublicKey); // Store the admin's public key
+  //   this.value.set(Field(1));
+  // }
+
+  //deploy trigers init
+  async deploy(args: DeployArgs & { adminPublicKey: PublicKey }) {
+    await super.deploy();
+    this.account.permissions.set({
+      ...Permissions.default(),
+    });
+
+    Provable.log('inside initWorld with ', args.adminPublicKey);
     super.init(); // Initialize the contract
-    this.adminKey.set(adminPublicKey); // Store the admin's public key
+    this.adminKey.set(args.adminPublicKey); // Store the admin's public key
     this.value.set(Field(1));
   }
 
@@ -40,7 +63,7 @@ export class First extends SmartContract {
   }
 
   @method async updateValue(message: Field, signature: Signature) {
-    console.log('inside updateValue with ', message, ' & ', signature);
+    Provable.log('inside updateValue with ', message, ' & ', signature);
 
     await this.verifyAdmin(message, signature);
 
