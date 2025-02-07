@@ -60,7 +60,8 @@ export default function Home() {
           await new Promise((resolve) => setTimeout(resolve, 5000));
           displayStep("Done loading web worker");
 
-          await zkappWorkerClient.setActiveInstanceToDevnet();
+          await zkappWorkerClient.setActiveInstanceToLightnet();
+          // await zkappWorkerClient.setActiveInstanceToDevnet();
 
           const mina = (window as any).mina;
           if (mina == null) {

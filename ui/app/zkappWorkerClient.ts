@@ -16,6 +16,9 @@ export default class ZkappWorkerClient {
     this.remoteApi = Comlink.wrap(worker);
   }
 
+  async setActiveInstanceToLightnet() {
+    return this.remoteApi.setActiveInstanceToLightnet();
+  }
   async setActiveInstanceToDevnet() {
     return this.remoteApi.setActiveInstanceToDevnet();
   }

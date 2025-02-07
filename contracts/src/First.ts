@@ -41,7 +41,7 @@ export class First extends SmartContract {
     });
 
     Provable.log('inside initWorld with ', args.adminPublicKey);
-    super.init(); // Initialize the contract
+    // super.init(); // Initialize the contract
     this.adminKey.set(args.adminPublicKey); // Store the admin's public key
     this.value.set(Field(1));
   }
