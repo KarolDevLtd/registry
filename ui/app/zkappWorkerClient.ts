@@ -19,8 +19,13 @@ export default class ZkappWorkerClient {
   async setActiveInstanceToLightnet() {
     return this.remoteApi.setActiveInstanceToLightnet();
   }
+
   async setActiveInstanceToDevnet() {
     return this.remoteApi.setActiveInstanceToDevnet();
+  }
+
+  async feePayerSetup() {
+    return this.remoteApi.feePayerSetup();
   }
 
   async loadContract() {

@@ -1,12 +1,12 @@
 "use client";
-import { Field, PrivateKey } from "o1js";
+import { Field } from "o1js";
 import { useEffect, useState } from "react";
 import GradientBG from "../components/GradientBG";
 import styles from "../styles/Home.module.css";
 import "./reactCOIServiceWorker";
 import ZkappWorkerClient from "./zkappWorkerClient";
 
-let transactionFee = 0.1;
+const transactionFee = 0.1;
 
 // const zkAppPrivateKey = PrivateKey.random();
 // const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
@@ -62,6 +62,8 @@ export default function Home() {
 
           await zkappWorkerClient.setActiveInstanceToLightnet();
           // await zkappWorkerClient.setActiveInstanceToDevnet();
+
+          await zkappWorkerClient.feePayerSetup();
 
           const mina = (window as any).mina;
           if (mina == null) {

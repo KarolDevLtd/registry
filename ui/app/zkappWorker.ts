@@ -1,6 +1,7 @@
 import {
   AccountUpdate,
   Field,
+  Lightnet,
   Mina,
   PrivateKey,
   PublicKey,
@@ -9,6 +10,8 @@ import {
 } from "o1js";
 import * as Comlink from "comlink";
 import type { First } from "../../contracts/src/First";
+import { send } from "process";
+// import { sender } from "o1js/dist/node/lib/mina/mina";
 
 type Transaction = Awaited<ReturnType<typeof Mina.transaction>>;
 
@@ -16,14 +19,16 @@ const state = {
   FirstInstance: null as null | typeof First,
   zkappInstance: null as null | First,
   transaction: null as null | Transaction,
+  senderKey: null as null | PrivateKey,
+  compiled: null as null | any,
 };
 
 export const api = {
   setActiveInstanceToLightnet: async () => {
     const Network = Mina.Network({
-      networkId: "testnet",
+      // networkId: "testnet",
       mina: "http://localhost:8080/graphql",
-      archive: "http://localhost:8282",
+      // archive: "http://localhost:8282",
       lightnetAccountManager: "http://localhost:8181",
     });
     console.log("Lightnet network instance configured.");
@@ -36,26 +41,51 @@ export const api = {
     console.log("Devnet network instance configured");
     Mina.setActiveInstance(Network);
   },
+  async feePayerSetup() {
+    state.senderKey = PrivateKey.fromBase58(
+      "EKEpTS7BPELGVknSgdEEG4YYR1UJMtDgLwYeNbkHtMxkwdwJTwyy"
+    );
+    const sender = state.senderKey.toPublicKey();
+    console.log(`Fetching the fee payer account information.`);
+    const accountDetails = (await fetchAccount({ publicKey: sender })).account;
+    console.log(
+      `Using the fee payer account ${sender.toBase58()} with nonce: ${
+        accountDetails?.nonce
+      } and balance: ${accountDetails?.balance}.`
+    );
+    console.log("");
+  },
+
   async loadContract() {
     const { First } = await import("../../contracts/build/src/First.js");
     state.FirstInstance = First;
   },
   async compileContract() {
-    await state.FirstInstance!.compile();
+    state.compiled = await state.FirstInstance!.compile();
   },
   async fetchAccount(publicKey58: string) {
     const publicKey = PublicKey.fromBase58(publicKey58);
     return fetchAccount({ publicKey });
   },
   async deployZkappInstance(publicKey58: string, adminKey58: string) {
-    state.transaction = await Mina.transaction(async () => {
-      // const publicKey = PublicKey.fromBase58(publicKey58);
-      // state.zkappInstance = new state.FirstInstance!(publicKey);
-      AccountUpdate.fundNewAccount(PublicKey.fromBase58(adminKey58));
-      state.zkappInstance?.deploy({
-        adminPublicKey: PublicKey.fromBase58(adminKey58),
-      });
-    });
+    // state.transaction = await Mina.transaction(async () => {
+    const publicKey = PublicKey.fromBase58(publicKey58);
+    state.zkappInstance = new state.FirstInstance!(publicKey);
+    //   // AccountUpdate.fundNewAccount(PublicKey.fromBase58(adminKey58));
+    //   state.zkappInstance?.deploy({
+    //     adminPublicKey: PublicKey.fromBase58(adminKey58),
+    //   });
+    // });
+    const sender = state.senderKey!.toPublicKey();
+    state.transaction = await Mina.transaction(
+      { sender, fee: 100 },
+      async () => {
+        AccountUpdate.fundNewAccount(sender);
+        await state.zkappInstance?.deploy({
+          adminPublicKey: PublicKey.fromBase58(adminKey58),
+        });
+      }
+    );
   },
   async getNum() {
     const currentNum = await state.zkappInstance!.value.get();
@@ -82,7 +112,7 @@ export const api = {
     return state.transaction
       ?.sign([
         PrivateKey.fromBase58(
-          "EKFJ6DSX9HNM6jbLBG5RYv7tSLK8CrQRZWbDYAKM1XFyzJ95ssWx"
+          "EKEpTS7BPELGVknSgdEEG4YYR1UJMtDgLwYeNbkHtMxkwdwJTwyy"
         ),
       ])
       .toJSON();
