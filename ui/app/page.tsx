@@ -1,5 +1,5 @@
 "use client";
-import { Field, PrivateKey } from "o1js";
+import { Field } from "o1js";
 import { useEffect, useState } from "react";
 import GradientBG from "../components/GradientBG";
 import styles from "../styles/Home.module.css";
@@ -149,21 +149,16 @@ export default function Home() {
       await zkappWorkerClient!.proveTransaction();
 
       displayStep("Requesting send init transaction...");
-      const transactionJSON =
-        await zkappWorkerClient!.getDeployTransactionJSON();
+      const transactionJSON = await zkappWorkerClient!.getTransactionJSON();
 
       displayStep("Getting int transaction JSON...");
       const { hash } = await (window as any).mina.sendTransaction({
         transaction: transactionJSON,
         feePayer: {
           fee: transactionFee,
-          memo: "",
+          memo: "deploying contract",
         },
       });
-
-      // const transactionLink = `https://minascan.io/devnet/tx/${hash}`;
-      // setTransactionLink(transactionLink);
-      // setDisplayText(transactionLink);
     } catch (error) {
       console.log("error", error);
     } finally {
@@ -185,9 +180,13 @@ export default function Home() {
         ?.signMessage({ message: "q" })
         .catch((err: any) => err);
 
-      const siggy = data.signature;
+      const siggy = data;
 
-      await zkappWorkerClient!.createUpdateTransaction(1, siggy);
+      await zkappWorkerClient!.createUpdateTransaction(
+        1,
+        siggy,
+        walletKeyBase58
+      );
 
       displayStep("Creating proof...");
       await zkappWorkerClient!.proveTransaction();

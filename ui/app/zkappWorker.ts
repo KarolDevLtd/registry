@@ -1,5 +1,4 @@
 import {
-  AccountUpdate,
   Field,
   Mina,
   PrivateKey,
@@ -47,12 +46,22 @@ export const api = {
     });
   },
   async deployZkappInstance(adminKey58: string) {
-    state.transaction = await Mina.transaction(async () => {
-      AccountUpdate.fundNewAccount(PublicKey.fromBase58(adminKey58));
-      state.zkappInstance?.deploy({
-        adminPublicKey: PublicKey.fromBase58(adminKey58),
+    const admin = PublicKey.fromBase58(adminKey58);
+    const transaction = await Mina.transaction({ sender: admin }, async () => {
+      //SP Below line needs uncommenting when deploying first time
+      // AccountUpdate.fundNewAccount(admin);
+      await state.zkappInstance?.deploy({
+        adminPublicKey: admin,
       });
     });
+
+    transaction.sign([
+      PrivateKey.fromBase58(
+        "EKFJ6DSX9HNM6jbLBG5RYv7tSLK8CrQRZWbDYAKM1XFyzJ95ssWx"
+      ),
+    ]);
+
+    state.transaction = transaction;
   },
   async initFirst(zkAppAddress: string) {
     const publicKey = PublicKey.fromBase58(zkAppAddress);
@@ -62,15 +71,24 @@ export const api = {
     const currentNum = await state.zkappInstance!.value.get();
     return JSON.stringify(currentNum.toJSON());
   },
-  async createUpdateTransaction(value: number, signature: Signature) {
-    state.transaction = await Mina.transaction(async () => {
+  async createUpdateTransaction(
+    value: number,
+    signature: string,
+    adminKey58: string
+  ) {
+    const admin = PublicKey.fromBase58(adminKey58);
+
+    const sig = Signature.fromBase58(
+      "7mX9yHg4rVt62SFmM2v8svtG4R5F8r4uY9fgbNj88czeQb4SScPQc8r1e5suuKsNcYXPLzaQdjismPmJRFsWypcQhfxcrRkC"
+    );
+
+    state.transaction = await Mina.transaction({ sender: admin }, async () => {
       //   await state.zkappInstance!.updateValue(Field.from(value), signature);
-      if (!state.zkappInstance) {
-        console.error("zkappInstance is not initialized");
-        return;
-      }
-      // const x = Signature.fromBase58(signature.signature);
-      await state.zkappInstance.updateValue(Field(4), signature);
+      // if (!state.zkappInstance) {
+      //   console.error("zkappInstance is not initialized");
+      //   return;
+      // }
+      await state.zkappInstance!.updateValue(Field(4), sig);
     });
   },
   async proveTransaction() {
@@ -79,15 +97,15 @@ export const api = {
   async getTransactionJSON() {
     return state.transaction!.toJSON();
   },
-  async getDeployTransactionJSON() {
-    return state.transaction
-      ?.sign([
-        PrivateKey.fromBase58(
-          "EKFJ6DSX9HNM6jbLBG5RYv7tSLK8CrQRZWbDYAKM1XFyzJ95ssWx"
-        ),
-      ])
-      .toJSON();
-  },
+  // async getDeployTransactionJSON() {
+  //   return state.transaction
+  //     ?.sign([
+  //       PrivateKey.fromBase58(
+  //         "EKFJ6DSX9HNM6jbLBG5RYv7tSLK8CrQRZWbDYAKM1XFyzJ95ssWx"
+  //       ),
+  //     ])
+  //     .toJSON();
+  // },
   // async fetchAccount(args: { publicKey: string; tokenId?: string }) {
   //   const publicKey = PublicKey.fromBase58(args.publicKey);
   //   try {

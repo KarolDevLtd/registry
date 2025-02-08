@@ -72,6 +72,7 @@ describe('First', () => {
     //updateValue setup
     const message = Field(999);
     const signature = Signature.create(adminAccount.key, [message]);
+    console.log('signature', signature.toBase58());
     const updateTxn = await Mina.transaction(adminAccount, async () => {
       await zkApp.updateValue(message, signature);
     });

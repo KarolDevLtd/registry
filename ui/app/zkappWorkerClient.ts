@@ -1,4 +1,4 @@
-import { Field, Signature } from "o1js";
+import { Field } from "o1js";
 import * as Comlink from "comlink";
 
 export default class ZkappWorkerClient {
@@ -48,8 +48,12 @@ export default class ZkappWorkerClient {
     return Field.fromJSON(JSON.parse(result as string));
   }
 
-  async createUpdateTransaction(value: number, signature: Signature) {
-    return this.remoteApi.createUpdateTransaction(value, signature);
+  async createUpdateTransaction(
+    value: number,
+    signature: string,
+    adminKey58: string
+  ) {
+    return this.remoteApi.createUpdateTransaction(value, signature, adminKey58);
   }
 
   async proveTransaction() {
@@ -60,7 +64,7 @@ export default class ZkappWorkerClient {
     return this.remoteApi.getTransactionJSON();
   }
 
-  async getDeployTransactionJSON() {
-    return this.remoteApi.getDeployTransactionJSON();
-  }
+  // async getDeployTransactionJSON() {
+  //   return this.remoteApi.getDeployTransactionJSON();
+  // }
 }
