@@ -6,6 +6,7 @@ import {
   PublicKey,
   Signature,
   fetchAccount,
+  Cache,
 } from "o1js";
 import * as Comlink from "comlink";
 import type { First } from "../../contracts/src/First";
@@ -41,21 +42,21 @@ export const api = {
     state.FirstInstance = First;
   },
   async compileContract() {
-    await state.FirstInstance!.compile();
+    await state.FirstInstance!.compile({
+      cache: Cache.FileSystemDefault,
+    });
   },
-  async fetchAccount(publicKey58: string) {
-    const publicKey = PublicKey.fromBase58(publicKey58);
-    return fetchAccount({ publicKey });
-  },
-  async deployZkappInstance(publicKey58: string, adminKey58: string) {
+  async deployZkappInstance(adminKey58: string) {
     state.transaction = await Mina.transaction(async () => {
-      // const publicKey = PublicKey.fromBase58(publicKey58);
-      // state.zkappInstance = new state.FirstInstance!(publicKey);
       AccountUpdate.fundNewAccount(PublicKey.fromBase58(adminKey58));
       state.zkappInstance?.deploy({
         adminPublicKey: PublicKey.fromBase58(adminKey58),
       });
     });
+  },
+  async initFirst(zkAppAddress: string) {
+    const publicKey = PublicKey.fromBase58(zkAppAddress);
+    state.zkappInstance = new state.FirstInstance!(publicKey);
   },
   async getNum() {
     const currentNum = await state.zkappInstance!.value.get();
@@ -86,6 +87,27 @@ export const api = {
         ),
       ])
       .toJSON();
+  },
+  // async fetchAccount(args: { publicKey: string; tokenId?: string }) {
+  //   const publicKey = PublicKey.fromBase58(args.publicKey);
+  //   try {
+  //     if (args.tokenId === undefined) {
+  //       const result = await fetchAccount({ publicKey: args.publicKey });
+  //       // console.log('fetchAccount result:', result);
+  //       return result;
+  //     } else {
+  //       const tokenId = new Field(args.tokenId);
+  //       console.log("fetching account with token id", args.tokenId);
+  //       const result = await fetchAccount({ publicKey, tokenId: tokenId });
+  //       return result;
+  //     }
+  //   } catch (error) {
+  //     console.error("Error in fetchAccount:", error);
+  //   }
+  // },
+  async fetchAccount(publicKey58: string) {
+    const publicKey = PublicKey.fromBase58(publicKey58);
+    return fetchAccount({ publicKey });
   },
 };
 

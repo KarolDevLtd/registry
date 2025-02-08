@@ -37,7 +37,7 @@ export default function Home() {
   const [hasBeenSetup, setHasBeenSetup] = useState(false);
   const [accountExists, setAccountExists] = useState(false);
   const [currentNum, setCurrentNum] = useState<null | Field>(null);
-  const [publicKeyBase58, setPublicKeyBase58] = useState("");
+  const [walletKeyBase58, setwalletKeyBase58] = useState("");
   const [transactionInProgress, setTransactionInProgress] = useState(false);
   const [displayText, setDisplayText] = useState("");
   const [transactionlink, setTransactionLink] = useState("");
@@ -70,12 +70,12 @@ export default function Home() {
             return;
           }
 
-          const publicKeyBase58: string = (await mina.requestAccounts())[0];
-          setPublicKeyBase58(publicKeyBase58);
-          displayStep(`Using key:${publicKeyBase58}`);
+          const walletKeyBase58: string = (await mina.requestAccounts())[0];
+          setwalletKeyBase58(walletKeyBase58);
+          displayStep(`Using key:${walletKeyBase58}`);
 
           displayStep("Checking if fee payer account exists...");
-          const res = await zkappWorkerClient.fetchAccount(publicKeyBase58);
+          const res = await zkappWorkerClient.fetchAccount(walletKeyBase58);
           const accountExists = res.error === null;
           setAccountExists(accountExists);
 
@@ -84,6 +84,8 @@ export default function Home() {
           displayStep("Compiling zkApp...");
           await zkappWorkerClient.compileContract();
           displayStep("zkApp compiled");
+
+          await zkappWorkerClient.initFirst(ZKAPP_ADDRESS);
 
           displayStep("Getting zkApp state...");
           await zkappWorkerClient.fetchAccount(ZKAPP_ADDRESS);
@@ -113,7 +115,7 @@ export default function Home() {
           for (;;) {
             displayStep("Checking if fee payer account exists...");
 
-            const res = await zkappWorkerClient!.fetchAccount(publicKeyBase58);
+            const res = await zkappWorkerClient!.fetchAccount(walletKeyBase58);
             const accountExists = res.error == null;
             if (accountExists) {
               break;
@@ -138,13 +140,10 @@ export default function Home() {
       setTransactionInProgress(true);
       displayStep("Creating a init transaction...");
 
-      console.log("publicKeyBase58 sending to worker", publicKeyBase58);
-      await zkappWorkerClient!.fetchAccount(publicKeyBase58);
+      console.log("walletKeyBase58 sending to worker", walletKeyBase58);
+      await zkappWorkerClient!.fetchAccount(walletKeyBase58);
 
-      await zkappWorkerClient!.deployZkappInstance(
-        ZKAPP_ADDRESS,
-        publicKeyBase58
-      );
+      await zkappWorkerClient!.deployZkappInstance(walletKeyBase58);
 
       displayStep("Creating proof...");
       await zkappWorkerClient!.proveTransaction();
@@ -177,8 +176,8 @@ export default function Home() {
       setTransactionInProgress(true);
       displayStep("Creating a update transaction...");
 
-      console.log("publicKeyBase58 sending to worker", publicKeyBase58);
-      await zkappWorkerClient!.fetchAccount(publicKeyBase58);
+      console.log("walletKeyBase58 sending to worker", walletKeyBase58);
+      await zkappWorkerClient!.fetchAccount(walletKeyBase58);
 
       const mina = (window as any).mina;
 
@@ -274,7 +273,7 @@ export default function Home() {
 
   let accountDoesNotExist;
   if (hasBeenSetup && !accountExists) {
-    const faucetLink = `https://faucet.minaprotocol.com/?address='${publicKeyBase58}`;
+    const faucetLink = `https://faucet.minaprotocol.com/?address='${walletKeyBase58}`;
     accountDoesNotExist = (
       <div>
         <span style={{ paddingRight: "1rem" }}>Account does not exist.</span>
