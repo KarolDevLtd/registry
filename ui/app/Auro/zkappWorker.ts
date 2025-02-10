@@ -9,7 +9,7 @@ import {
   AccountUpdate,
 } from "o1js";
 import * as Comlink from "comlink";
-import type { First } from "../../contracts/src/First";
+import type { Auro } from "../../../contracts/src/Auro";
 
 export type SignedData = {
   publicKey: string;
@@ -23,8 +23,8 @@ export type SignedData = {
 type Transaction = Awaited<ReturnType<typeof Mina.transaction>>;
 
 const state = {
-  FirstInstance: null as null | typeof First,
-  zkappInstance: null as null | First,
+  AuroInstance: null as null | typeof Auro,
+  zkappInstance: null as null | Auro,
   transaction: null as null | Transaction,
 };
 
@@ -47,11 +47,11 @@ export const api = {
     Mina.setActiveInstance(Network);
   },
   async loadContract() {
-    const { First } = await import("../../contracts/build/src/First.js");
-    state.FirstInstance = First;
+    const { Auro } = await import("../../../contracts/build/src/Auro.js");
+    state.AuroInstance = Auro;
   },
   async compileContract() {
-    await state.FirstInstance!.compile({
+    await state.AuroInstance!.compile({
       cache: Cache.FileSystemDefault,
     });
   },
@@ -73,9 +73,9 @@ export const api = {
 
     state.transaction = transaction;
   },
-  async initFirst(zkAppAddress: string) {
+  async initAuro(zkAppAddress: string) {
     const publicKey = PublicKey.fromBase58(zkAppAddress);
-    state.zkappInstance = new state.FirstInstance!(publicKey);
+    state.zkappInstance = new state.AuroInstance!(publicKey);
   },
   async getNum() {
     const currentNum = await state.zkappInstance!.value.get();

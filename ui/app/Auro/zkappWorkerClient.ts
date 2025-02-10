@@ -48,8 +48,8 @@ export default class ZkappWorkerClient {
     return this.remoteApi.deployZkappInstance(adminKey58);
   }
 
-  async initFirst(zkAppAddress: string) {
-    return this.remoteApi.initFirst(zkAppAddress);
+  async initAuro(zkAppAddress: string) {
+    return this.remoteApi.initAuro(zkAppAddress);
   }
 
   async getNum(): Promise<Field> {

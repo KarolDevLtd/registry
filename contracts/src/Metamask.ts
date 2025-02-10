@@ -18,7 +18,7 @@ class Bytes32 extends Bytes(2) {}
 
 let defaultValue = Bytes32.fromString('w');
 
-export class Second extends SmartContract {
+export class Metamask extends SmartContract {
   // State variable to store the admin's public key
   // @state(PublicKey) adminKey = State<PublicKey>();
   @state(Bytes32) value = State<Bytes32>();

@@ -10,7 +10,7 @@ import {
   Crypto,
   UInt64,
 } from 'o1js';
-import { Second } from './Second';
+import { Metamask } from './Metamask';
 
 /*
  * This file specifies how to test the `Test` example smart contract.
@@ -19,7 +19,7 @@ import { Second } from './Second';
  */
 const proofsEnabled = false;
 class Secp256k1 extends createForeignCurve(Crypto.CurveParams.Secp256k1) {}
-class Scalar extends Secp256k1.Scalar {}
+// class Scalar extends Secp256k1.Scalar {}
 class Ecdsa extends createEcdsa(Secp256k1) {}
 class Bytes32 extends Bytes(2) {}
 
@@ -31,12 +31,12 @@ describe('Second', () => {
     adminAccount: Mina.TestPublicKey,
     zkAppAddress: PublicKey,
     zkAppPrivateKey: PrivateKey,
-    zkApp: Second,
+    zkApp: Metamask,
     ethPrivateKey = Secp256k1.Scalar.random(),
     ethPublicKey = Secp256k1.generator.scale(ethPrivateKey);
 
   beforeAll(async () => {
-    const { verificationKey } = await Second.compile({
+    await Metamask.compile({
       cache: Cache.FileSystemDefault,
     });
   });
@@ -50,7 +50,7 @@ describe('Second', () => {
 
     zkAppPrivateKey = PrivateKey.random();
     zkAppAddress = zkAppPrivateKey.toPublicKey();
-    zkApp = new Second(zkAppAddress);
+    zkApp = new Metamask(zkAppAddress);
   });
 
   async function localDeploy() {

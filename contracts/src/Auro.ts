@@ -13,7 +13,7 @@ import {
   DeployArgs,
 } from 'o1js';
 
-export class First extends SmartContract {
+export class Auro extends SmartContract {
   // State variable to store the admin's public key
   @state(PublicKey) adminKey = State<PublicKey>();
   @state(Field) value = State<Field>();
@@ -58,7 +58,7 @@ export class First extends SmartContract {
 
     //so instead you can do this one line:
     const adminPublicKey = this.adminKey.getAndRequireEquals();
-    Provable.log('First - adminPublicKey ', adminPublicKey);
+    Provable.log('Auro - adminPublicKey ', adminPublicKey);
 
     // Verify the signature
     const isValidSignature = signature.verify(adminPublicKey, [message]);
@@ -79,7 +79,7 @@ export class First extends SmartContract {
     let senderUpdate = AccountUpdate.createSigned(
       this.adminKey.getAndRequireEquals()
     );
-    Provable.log('First - senderUpdate');
+    Provable.log('Auro - senderUpdate');
 
     //always guarded by private key of the sender
     senderUpdate.send({ to: this, amount: paymentAmount });

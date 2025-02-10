@@ -7,7 +7,7 @@ import {
   Field,
   Signature,
 } from 'o1js';
-import { First } from './First';
+import { Auro } from './Auro';
 
 /*
  * This file specifies how to test the `Test` example smart contract.
@@ -15,7 +15,7 @@ import { First } from './First';
  * See https://docs.minaprotocol.com/zkapps for more info.
  */
 const proofsEnabled = true;
-describe('First', () => {
+describe('Auro', () => {
   let deployerAccount: Mina.TestPublicKey,
     deployerKey: PrivateKey,
     senderAccount: Mina.TestPublicKey,
@@ -23,11 +23,11 @@ describe('First', () => {
     adminAccount: Mina.TestPublicKey,
     zkAppAddress: PublicKey,
     zkAppPrivateKey: PrivateKey,
-    zkApp: First;
+    zkApp: Auro;
 
   beforeAll(async () => {
     if (proofsEnabled)
-      await First.compile({
+      await Auro.compile({
         cache: Cache.FileSystemDefault,
       });
 
@@ -38,7 +38,7 @@ describe('First', () => {
     senderKey = senderAccount.key;
     zkAppPrivateKey = PrivateKey.random();
     zkAppAddress = zkAppPrivateKey.toPublicKey();
-    zkApp = new First(zkAppAddress);
+    zkApp = new Auro(zkAppAddress);
 
     const txn = await Mina.transaction(deployerAccount, async () => {
       AccountUpdate.fundNewAccount(deployerAccount);

@@ -8,7 +8,7 @@
       "feepayerKeyPath": "/Users/scottphillips/.cache/zkapp-cli/keys/devaccount.json",
       "feepayerAlias": "devaccount",
       "fee": "0.1",
-      "smartContract": "First"
+      "smartContract": "Auro"
     }
   }
 }
