@@ -6,9 +6,19 @@ import {
   Signature,
   fetchAccount,
   Cache,
+  AccountUpdate,
 } from "o1js";
 import * as Comlink from "comlink";
 import type { First } from "../../contracts/src/First";
+
+export type SignedData = {
+  publicKey: string;
+  data: string;
+  signature: {
+    field: string;
+    scalar: string;
+  };
+};
 
 type Transaction = Awaited<ReturnType<typeof Mina.transaction>>;
 
@@ -49,7 +59,7 @@ export const api = {
     const admin = PublicKey.fromBase58(adminKey58);
     const transaction = await Mina.transaction({ sender: admin }, async () => {
       //SP Below line needs uncommenting when deploying first time
-      // AccountUpdate.fundNewAccount(admin);
+      AccountUpdate.fundNewAccount(admin);
       await state.zkappInstance?.deploy({
         adminPublicKey: admin,
       });
@@ -73,14 +83,48 @@ export const api = {
   },
   async createUpdateTransaction(
     value: number,
-    signature: string,
+    signature: SignedData,
     adminKey58: string
   ) {
+    const { field, scalar } = signature.signature;
+
+    // Example: Signature data from Auro wallet
+    const walletSignature = {
+      field: field, // Example field value (as a string or bigint)
+      scalar: scalar, // Example scalar value (as a string or bigint)
+    };
+    const input = signature.data;
+
+    // Convert field and scalar to Field elements
+    const rField = Field(walletSignature.field); // Convert to Field
+    const sField = Field(walletSignature.scalar); // Convert to Field
+
+    // Create the Signature
+    const o1jsSignature = new Signature(rField, sField);
+
+    console.log(o1jsSignature); // Output: Signature { r: Field, s: Field }
+
+    // Example public key and message
+    const publicKey = PublicKey.fromBase58(adminKey58); // Replace with actual public key
+    const message = [Field(input)]; // Example message (as an array of Fields)
+
+    // Verify the signature
+    const isValid = o1jsSignature.verify(publicKey, message);
+    console.log("isValid Signature: ", isValid);
+
     const admin = PublicKey.fromBase58(adminKey58);
 
-    const sig = Signature.fromBase58(
-      "7mX9yHg4rVt62SFmM2v8svtG4R5F8r4uY9fgbNj88czeQb4SScPQc8r1e5suuKsNcYXPLzaQdjismPmJRFsWypcQhfxcrRkC"
-    );
+    // const input = signature.data;
+    // const { field, scalar } = signature.signature;
+    // const o1jsSignature = new Signature({
+    //   r: BigInt(field),
+    //   s: BigInt(scalar),
+    // });
+    // const sig = Signature.fromBase58(
+    //   "7mX9yHg4rVt62SFmM2v8svtG4R5F8r4uY9fgbNj88czeQb4SScPQc8r1e5suuKsNcYXPLzaQdjismPmJRFsWypcQhfxcrRkC"
+    // );
+
+    // console.log("signarue from withint create update:", o1jsSignature);
 
     state.transaction = await Mina.transaction({ sender: admin }, async () => {
       //   await state.zkappInstance!.updateValue(Field.from(value), signature);
@@ -88,7 +132,7 @@ export const api = {
       //   console.error("zkappInstance is not initialized");
       //   return;
       // }
-      await state.zkappInstance!.updateValue(Field(4), sig);
+      await state.zkappInstance!.updateValue(Field(input), o1jsSignature);
     });
   },
   async proveTransaction() {

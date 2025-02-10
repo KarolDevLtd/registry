@@ -52,8 +52,13 @@ export class First extends SmartContract {
     // const adminPublicKey = this.adminKey.get(); // Get admin public key
     // this.adminKey.requireEquals(this.adminKey.get());
 
+    Provable.log('verifyAdmin - admin key:', this.adminKey);
+    Provable.log('verifyAdmin - message:', message);
+    Provable.log('verifyAdmin - signature:', signature);
+
     //so instead you can do this one line:
     const adminPublicKey = this.adminKey.getAndRequireEquals();
+    Provable.log('First - adminPublicKey ', adminPublicKey);
 
     // Verify the signature
     const isValidSignature = signature.verify(adminPublicKey, [message]);
@@ -66,12 +71,15 @@ export class First extends SmartContract {
     Provable.log('inside updateValue with ', message, ' & ', signature);
 
     await this.verifyAdmin(message, signature);
+    Provable.log('Admin verified');
 
     let paymentAmount = UInt64.from(2500000000);
+    Provable.log('set payment amount');
 
     let senderUpdate = AccountUpdate.createSigned(
       this.adminKey.getAndRequireEquals()
     );
+    Provable.log('First - senderUpdate');
 
     //always guarded by private key of the sender
     senderUpdate.send({ to: this, amount: paymentAmount });

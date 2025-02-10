@@ -1,6 +1,15 @@
 import { Field } from "o1js";
 import * as Comlink from "comlink";
 
+export type SignedData = {
+  publicKey: string;
+  data: string;
+  signature: {
+    field: string;
+    scalar: string;
+  };
+};
+
 export default class ZkappWorkerClient {
   // ---------------------------------------------------------------------------------------
   worker: Worker;
@@ -50,7 +59,7 @@ export default class ZkappWorkerClient {
 
   async createUpdateTransaction(
     value: number,
-    signature: string,
+    signature: SignedData,
     adminKey58: string
   ) {
     return this.remoteApi.createUpdateTransaction(value, signature, adminKey58);

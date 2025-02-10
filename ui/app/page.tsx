@@ -177,35 +177,58 @@ export default function Home() {
       const mina = (window as any).mina;
 
       const data = await mina
-        ?.signMessage({ message: "q" })
+        ?.signMessage({ message: "4" })
         .catch((err: any) => err);
 
       const siggy = data;
 
+      // Extract the signature fields
+      const { field, scalar } = data.signature;
+
+      // Convert the signature to O1JS Signature type
+      // const o1jsSignature = new Signature({
+      //   r: field,
+      //   s: scalar,
+      // });
+
+      // const o1jsSignature = new Signature(field, scalar);
+
+      // Signature.create(data.signature.)
+
+      console.log("siggy", siggy);
+      console.log("siggy.data", siggy.data);
+      // console.log("o1jsSignature", o1jsSignature);
+      // console.log(
+      //   "o1jsSignature signature verify",
+      //   o1jsSignature.verify(PublicKey.fromBase58(walletKeyBase58), [
+      //     Field("test"),
+      //   ])
+      // );
+
       await zkappWorkerClient!.createUpdateTransaction(
         1,
-        siggy,
+        data,
         walletKeyBase58
       );
 
       displayStep("Creating proof...");
-      await zkappWorkerClient!.proveTransaction();
+      // await zkappWorkerClient!.proveTransaction();
 
       displayStep("Requesting send update transaction...");
-      const transactionJSON = await zkappWorkerClient!.getTransactionJSON();
+      // const transactionJSON = await zkappWorkerClient!.getTransactionJSON();
 
       displayStep("Getting update  transaction JSON...");
-      const { hash } = await (window as any).mina.sendTransaction({
-        transaction: transactionJSON,
-        feePayer: {
-          fee: transactionFee,
-          memo: "",
-        },
-      });
+      // const { hash } = await (window as any).mina.sendTransaction({
+      //   transaction: transactionJSON,
+      //   feePayer: {
+      //     fee: transactionFee,
+      //     memo: "",
+      //   },
+      // });
 
-      const transactionLink = `https://minascan.io/devnet/tx/${hash}`;
-      setTransactionLink(transactionLink);
-      setDisplayText(transactionLink);
+      // const transactionLink = `https://minascan.io/devnet/tx/${hash}`;
+      // setTransactionLink(transactionLink);
+      // setDisplayText(transactionLink);
 
       setTransactionInProgress(false);
     } catch (error) {
