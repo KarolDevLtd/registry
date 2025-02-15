@@ -177,7 +177,7 @@ export default function Metamask() {
     if (!contract) return alert("Connect wallet first!");
     try {
       const tx = await contract.lockTokens({
-        value: ethers.utils.parseEther("0.01"),
+        value: ethers.utils.parseEther("0.0000000000000001"),
       });
       await tx.wait();
       alert("Tokens locked successfully!");
