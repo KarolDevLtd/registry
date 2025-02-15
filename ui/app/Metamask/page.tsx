@@ -48,6 +48,13 @@ const CONTRACT_ABI = [
     stateMutability: "payable",
     type: "function",
   },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "lockedTokens",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ];
 
 export default function Metamask() {
@@ -61,6 +68,7 @@ export default function Metamask() {
   );
   const [hasWallet, setHasWallet] = useState<null | boolean>(null);
   const [hasBeenSetup, setHasBeenSetup] = useState(false);
+  const [lockedAmount, setLockedAmount] = useState<string | undefined>();
   const [walletKeyBase58, setWalletKeyBase58] = useState("");
   const [displayText, setDisplayText] = useState("");
 
@@ -183,6 +191,17 @@ export default function Metamask() {
     }
   };
 
+  const getLockedTokens = async () => {
+    if (!contract) return alert("Connect wallet first!");
+    try {
+      const amount = await contract.lockedTokens(walletKeyBase58);
+      setLockedAmount(ethers.utils.formatEther(amount));
+    } catch (error) {
+      console.error("Error fetching locked tokens:", error);
+      alert("Transaction failed. Check console for details.");
+    }
+  };
+
   return (
     <GradientBG>
       <div className={styles.main} style={{ padding: 0 }}>
@@ -190,7 +209,9 @@ export default function Metamask() {
           {hasBeenSetup && hasWallet ? (
             <div style={{ justifyContent: "center", alignItems: "center" }}>
               <div className={styles.center} style={{ padding: 0 }}>
-                INTERACT WITH TOKEN BRIDGE
+                {walletKeyBase58 && lockedAmount
+                  ? `There is locked amount ${lockedAmount} on wallet ${walletKeyBase58}`
+                  : `INTERACT WITH TOKEN BRIDGE`}
               </div>
               <button
                 className={styles.card}
@@ -205,6 +226,9 @@ export default function Metamask() {
               </button>
               <button onClick={lockTokens} className={styles.card}>
                 Lock Tokens
+              </button>
+              <button onClick={getLockedTokens} className={styles.card}>
+                Get Locked Tokens
               </button>
             </div>
           ) : (
