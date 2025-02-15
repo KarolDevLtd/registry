@@ -133,9 +133,6 @@ export default function Metamask() {
 
         setWalletKeyBase58(address);
         displayStep("Checking if fee payer account exists...");
-        // const res = await zkappWorkerClient?.fetchAccount(address);
-        // const accountExists = res?.error === null;
-        // setAccountExists(accountExists);
         setHasBeenSetup(true);
         setDisplayText("");
       }
@@ -172,7 +169,6 @@ export default function Metamask() {
     }
   };
 
-  // Write Function - Lock Tokens
   const lockTokens = async () => {
     if (!contract) return alert("Connect wallet first!");
     try {
