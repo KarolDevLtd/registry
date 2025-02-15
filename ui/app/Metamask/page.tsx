@@ -1,363 +1,226 @@
 "use client";
-import { Field } from "o1js";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { ethers } from "ethers";
 import GradientBG from "../../components/GradientBG";
 import styles from "../../styles/Home.module.css";
-import ZkappWorkerClient from "./zkappWorkerClient";
-import { ethers } from "ethers";
 
-let transactionFee = 0.1;
+const CONTRACT_ADDRESS = "0xf5587F079A4537a7090863Ed4C21906A13018EFB";
+const ALCHEMY_RPC_URL =
+  "https://eth-sepolia.g.alchemy.com/v2/eVGBn7nM03MroI5TYlBcnFMHXQ3_nCAJ";
 
-const zkAppPrivateKey = "EKFJ6DSX9HNM6jbLBG5RYv7tSLK8CrQRZWbDYAKM1XFyzJ95ssWx";
-const zkAppPublicKey =
-  "B62qk16EioQdQRr353H3fmXUb3MRoyavUwvi2TYDLnkDtFp5eUaFKMX";
-console.log("Private key", zkAppPrivateKey);
-console.log("Public key", zkAppPublicKey);
-
-const ZKAPP_ADDRESS = zkAppPublicKey;
-
-export interface SignedData {
-  publicKey: string;
-  data: string;
-  signature: {
-    field: string;
-    scalar: string;
-  };
-}
+const CONTRACT_ABI = [
+  {
+    inputs: [],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "address", name: "user", type: "address" },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "when",
+        type: "uint256",
+      },
+    ],
+    name: "TokensLocked",
+    type: "event",
+  },
+  {
+    inputs: [],
+    name: "bridgeOperator",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "lockTokens",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+];
 
 export default function Metamask() {
-  const [zkappWorkerClient, setZkappWorkerClient] =
-    useState<null | ZkappWorkerClient>(null);
+  const [account, setAccount] = useState(null);
+  const [signer, setSigner] = useState<
+    ethers.providers.JsonRpcSigner | undefined
+  >();
+  const [contract, setContract] = useState<ethers.Contract | undefined>();
+  const [provider, setProvider] = useState(
+    new ethers.providers.JsonRpcProvider(ALCHEMY_RPC_URL)
+  );
   const [hasWallet, setHasWallet] = useState<null | boolean>(null);
   const [hasBeenSetup, setHasBeenSetup] = useState(false);
-  const [accountExists, setAccountExists] = useState(false);
-  const [currentNum, setCurrentNum] = useState<null | Field>(null);
-  const [walletKeyBase58, setwalletKeyBase58] = useState("");
-  const [transactionInProgress, setTransactionInProgress] = useState(false);
+  const [walletKeyBase58, setWalletKeyBase58] = useState("");
   const [displayText, setDisplayText] = useState("");
-  const [transactionlink, setTransactionLink] = useState("");
 
   const displayStep = (step: string) => {
     setDisplayText(step);
     console.log(step);
   };
 
-  // -------------------------------------------------------
-  // Do Setup
-
   useEffect(() => {
-    const setup = async () => {
+    const initialize = async () => {
       try {
-        if (!hasBeenSetup) {
-          displayStep("Loading web worker...");
-          //         const zkappWorkerClient = new ZkappWorkerClient();
-          //         setZkappWorkerClient(zkappWorkerClient);
-          //         await new Promise((resolve) => setTimeout(resolve, 5000));
-          //         displayStep("Done loading web worker");
-          //         await zkappWorkerClient.setActiveInstanceToLightnet();
-          //         // await zkappWorkerClient.setActiveInstanceToDevnet();
-          //         const mina = (window as any).mina;
-          //         if (mina == null) {
-          //           setHasWallet(false);
-          //           displayStep("Wallet not found.");
-          //           return;
-          //         }
-          // const walletKeyBase58: string = (await mina.requestAccounts())[0];
-          // A Web3Provider wraps a standard Web3 provider, which is
-          // what MetaMask injects as window.ethereum into each page
-          const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const signer = provider.getSigner();
+        setSigner(signer);
+        const contract = new ethers.Contract(
+          CONTRACT_ADDRESS,
+          CONTRACT_ABI,
+          signer
+        );
+        setContract(contract);
+        const address = await signer.getAddress();
+        console.log("Connected Address:", address);
 
-          // MetaMask requires requesting permission to connect users accounts
-          await provider.send("eth_requestAccounts", []);
+        setWalletKeyBase58(address);
+        setHasWallet(true);
 
-          // The MetaMask plugin also allows signing transactions to
-          // send ether and pay to change state within the blockchain.
-          // For this, you need the account signer...
-          const signer = provider.getSigner();
-          // Get the connected wallet address
-          const address = await signer.getAddress();
-          console.log("Connected Address:", address);
-
-          setwalletKeyBase58(address);
-          displayStep(`Using key:${walletKeyBase58}`);
-          displayStep("Checking if fee payer account exists...");
-          // const res = await zkappWorkerClient.fetchAccount(walletKeyBase58);
-          // const accountExists = res.error === null;
-          // setAccountExists(accountExists);
-
-          const mina = (window as any).mina;
-          if (mina == null) {
-            setHasWallet(false);
-            displayStep("Auro wallet not found.");
-            return;
-          }
-
-          const walletKeyBase58: string = (await mina.requestAccounts())[0];
-
-          // Define a message to sign
-          const message = walletKeyBase58;
-
-          // Sign the message
-          signer.signMessage(message).then((signature) => {
-            console.log("Signature:", signature);
-
-            // Recover the public key from the signature
-            const digest = ethers.utils.hashMessage(message);
-            const publicKey = ethers.utils.recoverPublicKey(digest, signature);
-            console.log("Public Key:", publicKey);
-          });
-
-          setHasBeenSetup(true);
-          setHasWallet(true);
-          setDisplayText("");
-        }
+        // Check if the account exists
+        // displayStep("Checking if fee payer account exists...");
+        // const res = await zkappWorkerClient?.fetchAccount(address);
+        // const accountExists = res?.error === null;
+        // setAccountExists(accountExists);
       } catch (error: any) {
-        displayStep(`Error during setup: ${error.message}`);
+        console.error("Error during initialization:", error.message);
+        setHasWallet(false);
       }
     };
 
-    setup();
+    initialize();
+
+    window.ethereum?.on("accountsChanged", (accounts: string[]) => {
+      if (accounts.length > 0) {
+        setWalletKeyBase58(accounts[0]);
+        setHasWallet(true);
+      } else {
+        setWalletKeyBase58("");
+        setHasWallet(false);
+        // setAccountExists(false);
+      }
+    });
   }, []);
 
-  // // -------------------------------------------------------
-  // // Wait for account to exist, if it didn't
+  const setup = async () => {
+    try {
+      if (!hasBeenSetup) {
+        displayStep("Loading web worker...");
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
 
-  // useEffect(() => {
-  //   const checkAccountExists = async () => {
-  //     if (hasBeenSetup && !accountExists) {
-  //       try {
-  //         for (;;) {
-  //           displayStep("Checking if fee payer account exists...");
+        await provider.send("eth_requestAccounts", []);
+        const signer = provider.getSigner();
+        setSigner(signer);
+        const contract = new ethers.Contract(
+          CONTRACT_ADDRESS,
+          CONTRACT_ABI,
+          signer
+        );
+        setContract(contract);
+        const address = await signer.getAddress();
+        console.log("Connected Address:", address);
 
-  //           const res = await zkappWorkerClient!.fetchAccount(walletKeyBase58);
-  //           const accountExists = res.error == null;
-  //           if (accountExists) {
-  //             break;
-  //           }
-  //           await new Promise((resolve) => setTimeout(resolve, 5000));
-  //         }
-  //       } catch (error: any) {
-  //         displayStep(`Error checking account: ${error.message}`);
-  //       }
-  //     }
-  //     setAccountExists(true);
-  //   };
+        setWalletKeyBase58(address);
+        displayStep("Checking if fee payer account exists...");
+        // const res = await zkappWorkerClient?.fetchAccount(address);
+        // const accountExists = res?.error === null;
+        // setAccountExists(accountExists);
+        setHasBeenSetup(true);
+        setDisplayText("");
+      }
+    } catch (error: any) {
+      displayStep(`Error during setup: ${error.message}`);
+    }
+  };
 
-  //   checkAccountExists();
-  // }, [zkappWorkerClient, hasBeenSetup, accountExists]);
+  const signMessage = () => {
+    if (signer) {
+      const message = "Tiddies";
+      signer.signMessage(message).then((signature) => {
+        console.log("Signature:", signature);
+        const digest = ethers.utils.hashMessage(message);
+        const publicKey = ethers.utils.recoverPublicKey(digest, signature);
+        console.log("Public Key:", publicKey);
+      });
+    }
+  };
 
-  // // -------------------------------------------------------
-  // // Send a transaction
+  const bridgeOperator = async () => {
+    try {
+      const readContract = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        CONTRACT_ABI,
+        provider
+      );
+      const bridgeOperator = await readContract.bridgeOperator();
+      console.log("Bridge Operator:", bridgeOperator);
+      alert(`Bridge Operator: ${bridgeOperator}`);
+    } catch (error) {
+      console.error("Error calling bridgeOperator:", error);
+      alert("Failed to fetch bridge operator. Check console for details.");
+    }
+  };
 
-  // const onSendInitTransaction = async () => {
-  //   try {
-  //     setTransactionInProgress(true);
-  //     displayStep("Creating a init transaction...");
-
-  //     console.log("walletKeyBase58 sending to worker", walletKeyBase58);
-  //     await zkappWorkerClient!.fetchAccount(walletKeyBase58);
-
-  //     await zkappWorkerClient!.deployZkappInstance(walletKeyBase58);
-
-  //     displayStep("Creating proof...");
-  //     await zkappWorkerClient!.proveTransaction();
-
-  //     displayStep("Requesting send init transaction...");
-  //     const transactionJSON = await zkappWorkerClient!.getTransactionJSON();
-
-  //     displayStep("Getting int transaction JSON...");
-  //     const { hash } = await (window as any).mina.sendTransaction({
-  //       transaction: transactionJSON,
-  //       feePayer: {
-  //         fee: transactionFee,
-  //         memo: "deploying contract",
-  //       },
-  //     });
-  //   } catch (error) {
-  //     console.log("error", error);
-  //   } finally {
-  //     setTransactionInProgress(false);
-  //   }
-  // };
-
-  // const onSendUpdateTransaction = async () => {
-  //   try {
-  //     setTransactionInProgress(true);
-  //     displayStep("Creating a update transaction...");
-
-  //     console.log("walletKeyBase58 sending to worker", walletKeyBase58);
-  //     await zkappWorkerClient!.fetchAccount(walletKeyBase58);
-
-  //     const mina = (window as any).mina;
-
-  //     const data = await mina
-  //       ?.signMessage({ message: "4" })
-  //       .catch((err: any) => err);
-
-  //     const siggy = data;
-
-  //     // Extract the signature fields
-  //     const { field, scalar } = data.signature;
-
-  //     // Convert the signature to O1JS Signature type
-  //     // const o1jsSignature = new Signature({
-  //     //   r: field,
-  //     //   s: scalar,
-  //     // });
-
-  //     // const o1jsSignature = new Signature(field, scalar);
-
-  //     // Signature.create(data.signature.)
-
-  //     console.log("siggy", siggy);
-  //     console.log("siggy.data", siggy.data);
-  //     // console.log("o1jsSignature", o1jsSignature);
-  //     // console.log(
-  //     //   "o1jsSignature signature verify",
-  //     //   o1jsSignature.verify(PublicKey.fromBase58(walletKeyBase58), [
-  //     //     Field("test"),
-  //     //   ])
-  //     // );
-
-  //     await zkappWorkerClient!.createUpdateTransaction(
-  //       1,
-  //       data,
-  //       walletKeyBase58
-  //     );
-
-  //     displayStep("Creating proof...");
-  //     // await zkappWorkerClient!.proveTransaction();
-
-  //     displayStep("Requesting send update transaction...");
-  //     // const transactionJSON = await zkappWorkerClient!.getTransactionJSON();
-
-  //     displayStep("Getting update  transaction JSON...");
-  //     // const { hash } = await (window as any).mina.sendTransaction({
-  //     //   transaction: transactionJSON,
-  //     //   feePayer: {
-  //     //     fee: transactionFee,
-  //     //     memo: "",
-  //     //   },
-  //     // });
-
-  //     // const transactionLink = `https://minascan.io/devnet/tx/${hash}`;
-  //     // setTransactionLink(transactionLink);
-  //     // setDisplayText(transactionLink);
-
-  //     setTransactionInProgress(false);
-  //   } catch (error) {
-  //     console.log("error", error);
-  //   } finally {
-  //     setTransactionInProgress(false);
-  //   }
-  // };
-
-  // -------------------------------------------------------
-  // Refresh the current state
-
-  // const onRefreshCurrentNum = async () => {
-  //   try {
-  //     displayStep("Getting zkApp state...");
-  //     await zkappWorkerClient!.fetchAccount(ZKAPP_ADDRESS);
-  //     const currentNum = await zkappWorkerClient!.getNum();
-  //     setCurrentNum(currentNum);
-  //     console.log(`Current state in zkApp: ${currentNum}`);
-  //     setDisplayText("");
-  //   } catch (error: any) {
-  //     displayStep(`Error refreshing state: ${error.message}`);
-  //   }
-  // };
-
-  // -------------------------------------------------------
-  // Create UI elements
-
-  let auroLinkElem;
-  if (hasWallet === false) {
-    const auroLink = "https://www.aurowallet.com/";
-    auroLinkElem = (
-      <div>
-        Could not find a wallet.{" "}
-        <a href="https://www.aurowallet.com/" target="_blank" rel="noreferrer">
-          Install Auro wallet here
-        </a>
-      </div>
-    );
-  }
-
-  const stepDisplay = transactionlink ? (
-    <a
-      href={transactionlink}
-      target="_blank"
-      rel="noreferrer"
-      style={{ textDecoration: "underline" }}
-    >
-      View transaction
-    </a>
-  ) : (
-    displayText
-  );
-
-  const setup = (
-    <div
-      className={styles.start}
-      style={{ fontWeight: "bold", fontSize: "1.5rem", paddingBottom: "5rem" }}
-    >
-      {stepDisplay}
-      {auroLinkElem}
-    </div>
-  );
-
-  // let accountDoesNotExist;
-  // if (hasBeenSetup && !accountExists) {
-  //   const faucetLink = `https://faucet.minaprotocol.com/?address='${walletKeyBase58}`;
-  //   accountDoesNotExist = (
-  //     <div>
-  //       <span style={{ paddingRight: "1rem" }}>Account does not exist.</span>
-  //       <a href={faucetLink} target="_blank" rel="noreferrer">
-  //         Visit the faucet to fund this fee payer account
-  //       </a>
-  //     </div>
-  //   );
-  // }
-
-  let mainContent;
-  if (hasBeenSetup && accountExists) {
-    mainContent = (
-      <div style={{ justifyContent: "center", alignItems: "center" }}>
-        <div className={styles.center} style={{ padding: 0 }}>
-          REGISTRY
-        </div>
-        <div className={styles.center} style={{ padding: 0 }}>
-          Current state in zkApp: {currentNum?.toString()}{" "}
-        </div>
-        <button
-          className={styles.card}
-          onClick={onSendInitTransaction}
-          disabled={transactionInProgress}
-        >
-          Init Transaction
-        </button>
-        <button
-          className={styles.card}
-          onClick={onSendUpdateTransaction}
-          disabled={transactionInProgress}
-        >
-          Send Transaction
-        </button>
-        <button className={styles.card} onClick={onRefreshCurrentNum}>
-          Get Latest State
-        </button>
-      </div>
-    );
-  }
+  // Write Function - Lock Tokens
+  const lockTokens = async () => {
+    if (!contract) return alert("Connect wallet first!");
+    try {
+      const tx = await contract.lockTokens({
+        value: ethers.utils.parseEther("0.01"),
+      });
+      await tx.wait();
+      alert("Tokens locked successfully!");
+    } catch (error) {
+      console.error("Error calling lockTokens:", error);
+      alert("Transaction failed. Check console for details.");
+    }
+  };
 
   return (
     <GradientBG>
       <div className={styles.main} style={{ padding: 0 }}>
         <div className={styles.center} style={{ padding: 0 }}>
-          {setup}
-          {/* {accountDoesNotExist}*/}
-          {mainContent}
+          {hasBeenSetup && hasWallet ? (
+            <div style={{ justifyContent: "center", alignItems: "center" }}>
+              <div className={styles.center} style={{ padding: 0 }}>
+                INTERACT WITH TOKEN BRIDGE
+              </div>
+              <button
+                className={styles.card}
+                onClick={() => {
+                  signMessage();
+                }}
+              >
+                Sign Message
+              </button>
+              <button className={styles.card} onClick={bridgeOperator}>
+                Get Bridge Operator
+              </button>
+              <button onClick={lockTokens} className={styles.card}>
+                Lock Tokens
+              </button>
+            </div>
+          ) : (
+            <div style={{ justifyContent: "center", alignItems: "center" }}>
+              <div className={styles.center} style={{ padding: 0 }}>
+                REGISTRY
+              </div>
+              <button className={styles.card} onClick={setup}>
+                Setup
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </GradientBG>
