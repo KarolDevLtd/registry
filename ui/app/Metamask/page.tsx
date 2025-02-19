@@ -1,72 +1,29 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
-import GradientBG from "../../components/GradientBG";
-import styles from "../../styles/Home.module.css";
+import GradientBG from "@/components/GradientBG";
+import styles from "@/styles/Home.module.css";
+import contractABI from "@/contractABI.json";
 
-const CONTRACT_ADDRESS = "0xf5587F079A4537a7090863Ed4C21906A13018EFB";
-const ALCHEMY_RPC_URL =
-  "https://eth-sepolia.g.alchemy.com/v2/eVGBn7nM03MroI5TYlBcnFMHXQ3_nCAJ";
-
-const CONTRACT_ABI = [
-  {
-    inputs: [],
-    stateMutability: "nonpayable",
-    type: "constructor",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "user", type: "address" },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "when",
-        type: "uint256",
-      },
-    ],
-    name: "TokensLocked",
-    type: "event",
-  },
-  {
-    inputs: [],
-    name: "bridgeOperator",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "lockTokens",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "lockedTokens",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-];
+const initializeContract = async (
+  contractAddress: string,
+  abi: any,
+  signer: ethers.providers.JsonRpcProvider
+): Promise<ethers.Contract> => {
+  return new ethers.Contract(contractAddress, abi, signer);
+};
 
 export default function Metamask() {
-  const [account, setAccount] = useState(null);
   const [signer, setSigner] = useState<
     ethers.providers.JsonRpcSigner | undefined
   >();
   const [contract, setContract] = useState<ethers.Contract | undefined>();
   const [provider, setProvider] = useState(
-    new ethers.providers.JsonRpcProvider(ALCHEMY_RPC_URL)
+    new ethers.providers.JsonRpcProvider(
+      process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL
+    )
   );
-  const [hasWallet, setHasWallet] = useState<null | boolean>(null);
+  const [hasWallet, setHasWallet] = useState<boolean | null>(null);
   const [hasBeenSetup, setHasBeenSetup] = useState(false);
   const [lockedAmount, setLockedAmount] = useState<string | undefined>();
   const [walletKeyBase58, setWalletKeyBase58] = useState("");
@@ -74,33 +31,32 @@ export default function Metamask() {
 
   const displayStep = (step: string) => {
     setDisplayText(step);
-    console.log(step);
   };
 
   useEffect(() => {
     const initialize = async () => {
       try {
+        if (!window.ethereum) {
+          throw new Error("MetaMask is not installed");
+        }
+
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = provider.getSigner();
-        setSigner(signer);
-        const contract = new ethers.Contract(
-          CONTRACT_ADDRESS,
-          CONTRACT_ABI,
-          signer
-        );
-        setContract(contract);
         const address = await signer.getAddress();
-        console.log("Connected Address:", address);
 
+        setProvider(provider);
+        setSigner(signer);
         setWalletKeyBase58(address);
         setHasWallet(true);
 
-        // Check if the account exists
-        // displayStep("Checking if fee payer account exists...");
-        // const res = await zkappWorkerClient?.fetchAccount(address);
-        // const accountExists = res?.error === null;
-        // setAccountExists(accountExists);
+        const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!;
+        const contract = await initializeContract(
+          contractAddress,
+          contractABI,
+          signer
+        );
+        setContract(contract);
       } catch (error: any) {
         console.error("Error during initialization:", error.message);
         setHasWallet(false);
@@ -116,7 +72,6 @@ export default function Metamask() {
       } else {
         setWalletKeyBase58("");
         setHasWallet(false);
-        // setAccountExists(false);
       }
     });
   }, []);
@@ -126,21 +81,12 @@ export default function Metamask() {
       if (!hasBeenSetup) {
         displayStep("Loading web worker...");
         const provider = new ethers.providers.Web3Provider(window.ethereum);
-
         await provider.send("eth_requestAccounts", []);
         const signer = provider.getSigner();
-        setSigner(signer);
-        const contract = new ethers.Contract(
-          CONTRACT_ADDRESS,
-          CONTRACT_ABI,
-          signer
-        );
-        setContract(contract);
         const address = await signer.getAddress();
-        console.log("Connected Address:", address);
 
+        setSigner(signer);
         setWalletKeyBase58(address);
-        displayStep("Checking if fee payer account exists...");
         setHasBeenSetup(true);
         setDisplayText("");
       }
@@ -149,28 +95,30 @@ export default function Metamask() {
     }
   };
 
-  const signMessage = () => {
-    if (signer) {
-      const message = "Tiddies";
-      signer.signMessage(message).then((signature) => {
-        console.log("Signature:", signature);
-        const digest = ethers.utils.hashMessage(message);
-        const publicKey = ethers.utils.recoverPublicKey(digest, signature);
-        console.log("Public Key:", publicKey);
-      });
+  const signMessage = async () => {
+    if (!signer) return;
+    try {
+      const message = "signing";
+      const signature = await signer.signMessage(message);
+      const digest = ethers.utils.hashMessage(message);
+      const publicKey = ethers.utils.recoverPublicKey(digest, signature);
+      console.log("Public Key:", publicKey);
+    } catch (error) {
+      console.error("Error signing message:", error);
     }
   };
 
   const bridgeOperator = async () => {
+    if (!provider) return;
     try {
-      const readContract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        CONTRACT_ABI,
+      const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!;
+      const readContract = await initializeContract(
+        contractAddress,
+        contractABI,
         provider
       );
-      const bridgeOperator = await readContract.bridgeOperator();
-      console.log("Bridge Operator:", bridgeOperator);
-      alert(`Bridge Operator: ${bridgeOperator}`);
+      const operator = await readContract.bridgeOperator();
+      alert(`Bridge Operator: ${operator}`);
     } catch (error) {
       console.error("Error calling bridgeOperator:", error);
       alert("Failed to fetch bridge operator. Check console for details.");
@@ -202,6 +150,11 @@ export default function Metamask() {
     }
   };
 
+  useEffect(() => {
+    console.log("Contract Address:", process.env.NEXT_PUBLIC_CONTRACT_ADDRESS);
+    console.log("Alchemy RPC URL:", process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL);
+  }, []);
+
   return (
     <GradientBG>
       <div className={styles.main} style={{ padding: 0 }}>
@@ -213,12 +166,7 @@ export default function Metamask() {
                   ? `There is locked amount ${lockedAmount} on wallet ${walletKeyBase58}`
                   : `INTERACT WITH TOKEN BRIDGE`}
               </div>
-              <button
-                className={styles.card}
-                onClick={() => {
-                  signMessage();
-                }}
-              >
+              <button className={styles.card} onClick={signMessage}>
                 Sign Message
               </button>
               <button className={styles.card} onClick={bridgeOperator}>
